@@ -288,8 +288,216 @@ public class CommandArgument {
 	protected List<CommandArgumentBuilder> getDownStreams() {
 		return this.downStreams;
 	}
+	
+	@Override
+	public String toString() {
+		return "CommandArgument[ com : %s || argsCount : %d || threadId : %s  || down stream : %s ]".formatted(command, args.size(), interactiveThreadId, downStreams);
+	}
+	
+	public static CommandArgumentBuilder getBuilder() {
+		return new CommandArgumentBuilder();
+	}
+	
+// DTO
+//---------------------------------------------------------------------
+// cast
+	
+	protected int[] tryClassCast(Command c, boolean hopeNextArg) {
+		List<Class<?>[]> patterns = c.getArgsType().getArgsType();
+		if(patterns == null || patterns.isEmpty()) return new int[0];
+		
+		List<Integer> matchPattern = new ArrayList<>();
+		
+		Object[] argObjArr = this.args.toArray();
+		for(int i = 0; i < argObjArr.length; i++) {
+			if(argObjArr[i] instanceof String) {
+				Object a = c.stringArgObjectMapper((String)argObjArr[i]);
+				if(a != null) argObjArr[i] = a;
+			}
+		}
+		
+		for(int i = 0; i < this.args.size(); i++) {
+			Class<?>[] pattern = patterns.get(i);
+			try {
+				CommandArgsCastInfo elem = castByPattern(Arrays.copyOf(pattern, this.args.size() - (hopeNextArg ? 0 : 1)), argObjArr);
+				if(elem.getResultObject().length == 0 || !elem.isPatternMatch()) continue;
+				
+				matchPattern.add(i);
+			} catch (IllegalArgumentException ignored) {
+//				ignored.printStackTrace();
+			}
+		}
+		
+		return matchPattern.stream().mapToInt(Integer::valueOf).toArray();
+	}
+	
+	protected Object[] classCastArgs(Command command) {
+		if(this.args.isEmpty()) return this.args.toArray();
+		List<Class<?>[]> patterns = command.getArgsType().getArgsType();
+		if(patterns == null) return this.args.toArray();
 
-	private void parseOptionsByArgs(){
+		if (patterns.isEmpty()) {
+			return this.args.toArray();
+		} else {
+			List<CommandArgsCastInfo> errorCastInfo = new ArrayList<>();
+			List<Duo<Integer, Class<?>[]>> sortedPatterns = new ArrayList<>();
+			for(int i = 0; i < patterns.size(); i++){
+				sortedPatterns.add(new Duo<>(i, patterns.get(i)));
+			}
+			
+			sortedPatterns.sort((a, b) -> {
+				if(b.getSecond().length == a.getSecond().length) {
+					for(int i = 0; i < a.getSecond().length; i++) {
+						if(a.getSecond()[i] == String.class && b.getSecond()[i] != String.class) return 1;
+						if(b.getSecond()[i] == String.class && a.getSecond()[i] != String.class) return -1;
+						if(a.getSecond()[i] == Long.class && b.getSecond()[i] == Integer.class) return 1;
+						if(b.getSecond()[i] == Long.class && a.getSecond()[i] == Integer.class) return -1;
+						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] != Number.class) return 1;
+						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] != Number.class) return -1;
+						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] == Double.class) return 1;
+						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] == Double.class) return -1;
+						if(a.getSecond()[i] == LocalDateTime.class && b.getSecond()[i] != LocalDateTime.class) return 1;
+						if(b.getSecond()[i] == LocalDateTime.class && a.getSecond()[i] != LocalDateTime.class) return -1;
+					}
+				}
+				return b.getSecond().length - a.getSecond().length;
+			});
+			
+			
+			for (Duo<Integer, Class<?>[]> pattern : sortedPatterns) {
+//				System.out.println("ptn : " + pattern.getFirst() + " | " + List.of(pattern.getSecond()).toString());
+				if(this.args.size() < pattern.getSecond().length) continue;
+				Object[] argsArr = this.args.toArray();
+				for(int i = 0; i < argsArr.length; i++) {
+					if(argsArr[i] instanceof String) {
+						Object a = command.stringArgObjectMapper((String)argsArr[i]);
+						if(a != null) argsArr[i] = a;
+					}
+				}
+				CommandArgsCastInfo elem = castByPattern(pattern.getSecond(), argsArr);
+				if(!elem.isPatternMatch()) {
+					errorCastInfo.add(elem);
+					continue;
+				}
+				if(elem.getResultObject().length == 0){
+					this.patternNumber = -1;
+					return this.args.toArray();
+				}
+				for (int i = 0; i < this.args.size(); i++) {
+					this.args.set(i, elem.getResultObject()[i]);
+				}
+				this.patternNumber = pattern.getFirst();
+				this.matchPattern = pattern.getSecond();
+				return this.args.toArray();
+			}
+			throw new CommandException(5, errorCastInfo);
+		}
+	}
+
+	protected CommandArgsCastInfo castByPattern(Class<?>[] pattern, Object[] nativeArgs) {
+		Object[] result = new Object[nativeArgs.length];
+		Boolean[] castSuccess = new Boolean[nativeArgs.length];
+
+		int ptn = 0;
+		boolean allOfOption = true;
+		boolean patternMatch = true;
+		
+		for (int i = 0; i < nativeArgs.length; i++) {
+
+			if(pattern.length <= ptn){
+				result[i] = nativeArgs[i];
+				continue;
+			}
+
+			if(i < this.ignoreOptionPos && nativeArgs[i] instanceof String && nativeArgs[i].equals("--")){
+				result[i] = nativeArgs[i].toString();
+				continue;
+			}
+			if(i < this.ignoreOptionPos && nativeArgs[i] instanceof String){
+				String nai = (String)nativeArgs[i];
+				if(nai.startsWith("-")){
+					result[i] = nai;
+					continue;
+				}
+			}
+			
+			allOfOption = false;
+			if(nativeArgs[i] != null) {
+				Object castResult = castAndCheck(nativeArgs[i], pattern[ptn++]);
+				if(castResult == null) {
+					patternMatch = false;
+					castSuccess[i] = true;
+				} else {
+					result[i] = castResult;
+					castSuccess[i] = true;
+				}
+			} else {
+				result[i] = null;
+				castSuccess[i] = true;
+			}
+		}
+
+		if(allOfOption){
+			return new CommandArgsCastInfo(-1, true, new Class<?>[0], new Boolean[0], new Object[0]);
+		}
+		return new CommandArgsCastInfo(ptn, patternMatch, pattern, castSuccess, result);
+	}
+
+	protected Object castAndCheck(Object value, Class<?> expected) {
+
+		// すでに期待型
+		Object direct = ClassCastUtil.cast(value, expected);
+		if (direct != null) {
+			return direct;
+		}
+
+		if(value instanceof String str) {
+			if (Number.class.isAssignableFrom(expected)) {
+				try {
+					Number num = ClassCastUtil.stringToNumber(str);
+					if(num == null || num.getClass() != expected) return null;
+					return num;
+				} catch (NumberFormatException ignore) {
+					return null;
+				}
+			}
+
+			if (expected == Boolean.class || expected == boolean.class) {
+				if(str.equalsIgnoreCase("true") || str.equalsIgnoreCase("false")){
+					return str.equalsIgnoreCase("true");
+				}
+				return null;
+			}
+			if (expected == Character.class || expected == char.class) {
+				if (str.length() == 1) {
+					return str.charAt(0);
+				}
+				return null;
+			}
+			
+			if(expected == LocalDate.class) {
+				LocalDate date = ClassCastUtil.stringToDate(str);
+				return date;
+			}
+			if(expected == LocalTime.class) {
+				LocalTime date = ClassCastUtil.stringToTime(str);
+				return date;
+			}
+			if(expected == LocalDateTime.class) {
+				LocalDateTime date = ClassCastUtil.stringToDateTime(str);
+				return date;
+			}
+		}
+		
+
+		return null;
+	}
+	
+// cast
+//---------------------------------------------------------------------
+// parse
+	
+	protected void parseOptionsByArgs(){
 		if(this.options != null) return;
 		if(!this.splitAndParseStringArgsCompleated) splitAndParseStringArgs();
 		this.options = new ArrayList<>();
@@ -410,187 +618,4 @@ public class CommandArgument {
 		this.args.remove(0);
 	}
 	
-	protected int[] tryClassCast(Command c, boolean hopeNextArg) {
-		List<Class<?>[]> patterns = c.getArgsType().getArgsType();
-		if(patterns == null || patterns.isEmpty()) return new int[0];
-		
-		List<Integer> matchPattern = new ArrayList<>();
-		
-		Object[] argObjArr = this.args.toArray();
-		for(int i = 0; i < argObjArr.length; i++) {
-			if(argObjArr[i] instanceof String) {
-				Object a = c.stringArgObjectMapper((String)argObjArr[i]);
-				if(a != null) argObjArr[i] = a;
-			}
-		}
-		
-		for(int i = 0; i < this.args.size(); i++) {
-			Class<?>[] pattern = patterns.get(i);
-			try {
-				Object[] elem = castByPattern(Arrays.copyOf(pattern, this.args.size() - (hopeNextArg ? 0 : 1)), argObjArr);
-				if(elem.length == 0) continue;
-				matchPattern.add(i);
-			} catch (IllegalArgumentException ignored) {
-//				ignored.printStackTrace();
-			}
-		}
-		
-		return matchPattern.stream().mapToInt(Integer::valueOf).toArray();
-	}
-	
-	protected Object[] classCastArgs(Command command) {
-		if(this.args.isEmpty()) return this.args.toArray();
-		List<Class<?>[]> patterns = command.getArgsType().getArgsType();
-		if(patterns == null) return this.args.toArray();
-
-		if (patterns.isEmpty()) {
-			return this.args.toArray();
-		} else {
-			List<Duo<Integer, Class<?>[]>> sortedPatterns = new ArrayList<>();
-			for(int i = 0; i < patterns.size(); i++){
-				sortedPatterns.add(new Duo<>(i, patterns.get(i)));
-			}
-			sortedPatterns.sort((a, b) -> {
-				if(b.getSecond().length == a.getSecond().length) {
-					for(int i = 0; i < a.getSecond().length; i++) {
-						if(a.getSecond()[i] == String.class && b.getSecond()[i] != String.class) return 1;
-						if(b.getSecond()[i] == String.class && a.getSecond()[i] != String.class) return -1;
-						if(a.getSecond()[i] == Long.class && b.getSecond()[i] == Integer.class) return 1;
-						if(b.getSecond()[i] == Long.class && a.getSecond()[i] == Integer.class) return -1;
-						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] != Number.class) return 1;
-						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] != Number.class) return -1;
-						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] == Double.class) return 1;
-						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] == Double.class) return -1;
-						if(a.getSecond()[i] == LocalDateTime.class && b.getSecond()[i] != LocalDateTime.class) return 1;
-						if(b.getSecond()[i] == LocalDateTime.class && a.getSecond()[i] != LocalDateTime.class) return -1;
-					}
-				}
-				return b.getSecond().length - a.getSecond().length;
-			});
-			for (Duo<Integer, Class<?>[]> pattern : sortedPatterns) {
-//				System.out.println("ptn : " + pattern.getFirst() + " | " + List.of(pattern.getSecond()).toString());
-				if(this.args.size() < pattern.getSecond().length) continue;
-				Object[] argsArr = this.args.toArray();
-				for(int i = 0; i < argsArr.length; i++) {
-					if(argsArr[i] instanceof String) {
-						Object a = command.stringArgObjectMapper((String)argsArr[i]);
-						if(a != null) argsArr[i] = a;
-					}
-				}
-				Object[] elem = castByPattern(pattern.getSecond(), argsArr);
-				if(elem == null) continue;
-				if(elem.length == 0){
-					this.patternNumber = -1;
-					return this.args.toArray();
-				}
-				for (int i = 0; i < this.args.size(); i++) {
-					this.args.set(i, elem[i]);
-				}
-				this.patternNumber = pattern.getFirst();
-				this.matchPattern = pattern.getSecond();
-				return this.args.toArray();
-			}
-		}
-		throw new CommandException(5, args);
-	}
-
-	private Object[] castByPattern(Class<?>[] pattern, Object[] nativeArgs) {
-		Object[] result = new Object[nativeArgs.length];
-
-		int ptn = 0;
-		boolean allOfOption = true;
-		for (int i = 0; i < nativeArgs.length; i++) {
-
-			if(pattern.length <= ptn){
-				result[i] = nativeArgs[i];
-				continue;
-			}
-
-			if(i < this.ignoreOptionPos && nativeArgs[i] instanceof String && nativeArgs[i].equals("--")){
-				result[i] = nativeArgs[i].toString();
-				continue;
-			}
-			if(i < this.ignoreOptionPos && nativeArgs[i] instanceof String){
-				String nai = (String)nativeArgs[i];
-				if(nai.startsWith("-")){
-					result[i] = nai;
-					continue;
-				}
-			}
-			
-			allOfOption = false;
-			if(nativeArgs[i] != null) {
-				Object castResult = castAndCheck(nativeArgs[i], pattern[ptn++]);
-				if(castResult == null) return null;
-				result[i] = castResult;
-			} else {
-				result[i] = null;
-			}
-			
-		}
-
-		if(allOfOption){
-			return new Object[0];
-		}
-		return result;
-	}
-
-	private Object castAndCheck(Object value, Class<?> expected) {
-
-		// すでに期待型
-		Object direct = ClassCastUtil.cast(value, expected);
-		if (direct != null) {
-			return direct;
-		}
-
-		if(value instanceof String str) {
-			if (Number.class.isAssignableFrom(expected)) {
-				try {
-					Number num = ClassCastUtil.stringToNumber(str);
-					if(num == null || num.getClass() != expected) return null;
-					return num;
-				} catch (NumberFormatException ignore) {
-					return null;
-				}
-			}
-
-			if (expected == Boolean.class || expected == boolean.class) {
-				if(str.equalsIgnoreCase("true") || str.equalsIgnoreCase("false")){
-					return str.equalsIgnoreCase("true");
-				}
-				return null;
-			}
-			if (expected == Character.class || expected == char.class) {
-				if (str.length() == 1) {
-					return str.charAt(0);
-				}
-				return null;
-			}
-			
-			if(expected == LocalDate.class) {
-				LocalDate date = ClassCastUtil.stringToDate(str);
-				return date;
-			}
-			if(expected == LocalTime.class) {
-				LocalTime date = ClassCastUtil.stringToTime(str);
-				return date;
-			}
-			if(expected == LocalDateTime.class) {
-				LocalDateTime date = ClassCastUtil.stringToDateTime(str);
-				return date;
-			}
-		}
-		
-
-		return null;
-	}
-	
-	@Override
-	public String toString() {
-		return "CommandArgument[ com : %s || argsCount : %d || threadId : %s  || down stream : %s ]".formatted(command, args.size(), interactiveThreadId, downStreams);
-	}
-	
-	public static CommandArgumentBuilder getBuilder() {
-		return new CommandArgumentBuilder();
-	}
 }

@@ -553,24 +553,30 @@ public class CommandManager {
 		
 		try {
 			args.classCastArgs(c);
-			CommandResult result = tryExecuteCommand(c, args);
-
-			if (result == null) throw new CommandException(3, null);
-			
-			if (result.isInteractiveMode()) {
-				if (result.getInteractiveThreadId() == null)
-					result.setInteractiveThreadId();
-				interactiveCommands.put(result.getInteractiveThreadId(), c.getNewInteractiveInstance(result.getInteractiveData()));
-			}
-
-			doListenersAfterEvent(listener, args, result);
-			
-			return result;
 		} catch (CommandException e) {
-			if (e.getCode() == 5)
+			if (e.getCode() == 5) {
+				List<CommandArgsCastInfo> info =  (List<CommandArgsCastInfo>) e.getError();
+				System.out.println(info.stream().map(i -> "num : " + i.getPatternNumber() + " || isMatch : " + i.isPatternMatch()).toList());
+				
 				return new CommandResult(langSettingFile.getNonNull("argsTypeUnmatched").toString(), CommandResultStatus.ERROR);
+			}
+			
 			throw e;
 		}
+		
+		CommandResult result = tryExecuteCommand(c, args);
+
+		if (result == null) throw new CommandException(3, null);
+		
+		if (result.isInteractiveMode()) {
+			if (result.getInteractiveThreadId() == null)
+				result.setInteractiveThreadId();
+			interactiveCommands.put(result.getInteractiveThreadId(), c.getNewInteractiveInstance(result.getInteractiveData()));
+		}
+
+		doListenersAfterEvent(listener, args, result);
+		
+		return result;
 	}
 	
 	protected CommandResult tryExecuteCommand(Command com, CommandArgument args) {
