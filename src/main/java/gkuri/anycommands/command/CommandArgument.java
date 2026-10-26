@@ -62,7 +62,7 @@ public class CommandArgument {
 				this.args.add(a);
 			}
 		}
-		this.options = null;
+		this.options = List.of();
 		this.patternNumber = -1;
 		this.nativeCommand = sb.toString();
 		this.executeUser = executeUser;
@@ -498,7 +498,7 @@ public class CommandArgument {
 // parse
 	
 	protected void parseOptionsByArgs(){
-		if(this.options != null) return;
+		if(!this.options.isEmpty()) return;
 		if(!this.splitAndParseStringArgsCompleated) splitAndParseStringArgs();
 		this.options = new ArrayList<>();
 		List<Integer> optionsPos = new ArrayList<>();

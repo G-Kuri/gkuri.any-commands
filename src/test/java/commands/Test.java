@@ -2,6 +2,7 @@ package commands;
 
 import commands.commandclass.ArgTypeCommand;
 import gkuri.anycommands.command.CommandArgument;
+import gkuri.anycommands.command.CommandArgumentBuilder;
 import gkuri.anycommands.command.CommandManager;
 import gkuri.anycommands.command.CommandManagerBuilder;
 
@@ -26,6 +27,9 @@ public class Test {
 		executeCommand("args '' 123");
 		executeCommand("args 456.456");
 		executeCommand("args 123 456.456");
+		executeCommand(new CommandArgumentBuilder().setCommand("args").setArgs(123, 456.456).build());
+		executeCommand(new CommandArgumentBuilder().setCommand("args").setArgs(123.456, new Test()).build());
+		executeCommand("history");
 	}
 	
 	private static void executeCommand(String args) {

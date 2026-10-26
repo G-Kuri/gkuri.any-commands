@@ -1,22 +1,24 @@
 # any-commands
 
-Java(21以降)向けのコマンド解析・実行フレームワークです。
+any-commands は、Java 21以降に対応したコマンド解析・実行フレームワークです。
 
-単純なCLIコマンドから、
+単純なCLIコマンドから、対話型シェル、サーバ管理コンソール、GUIアプリケーションまで、さまざまな操作インターフェースで共通して利用できるコマンド基盤を提供します。
 
-- 型安全な引数解析
-- サブコマンド
-- 入力補完
-- Typoサジェスト
-- パイプ実行
-- 対話型コマンド
-- 権限制御
-- イベントフック
-- 非同期実行
+コマンドの定義、引数の型変換・検証、入力補完、権限制御、イベント監視、非同期実行など、コマンドの実装と運用に必要な仕組みを統一されたAPIで扱えます。
 
-までを統一されたAPIで実装できます。
+## any-commands の特徴
+- 型安全なコマンド実行 — 引数の型を定義し、実行前の検証と変換を自動化
+- CLIに依存しない設計 — 文字列入力だけでなく、Javaオブジェクトを利用したコマンド実行にも対応
+- 柔軟なコマンド構成 — サブコマンド、パイプ実行、対話型コマンドをサポート
+- 実運用を支える機能 — 権限制御、イベントフック、実行履歴、非同期実行、同時実行数制限
+- 拡張可能な入力支援 — コマンド補完、引数補完、Typoサジェストに対応
 
-CLIツールだけでなく、サーバ管理コンソール、独自シェル、ゲームサーバ、GUIアプリケーションのコマンド基盤として利用できます。
+## コマンドを、文字列入力の枠から解放する
+コマンドの処理と操作インターフェースを分離することで、同じコマンド基盤をCLIや独自コンソール、GUIなどから利用できます。
+
+操作方法が変わっても、コマンドのロジックをそれぞれのUIに合わせて作り直す必要はありません。
+
+any-commands は、単なるコマンドライン解析ライブラリではなく、Javaアプリケーションの操作を共通化するためのコマンド基盤を目指しています。
 
 元々は anylib にて実装されていた command パッケージを、コマンド専用ライブラリとして抽出したものです。
 
@@ -355,6 +357,97 @@ CompletableFuture<CommandResult> future = manager.executeCommandAsync(args);
 イベントリスナの実装
 
 ※サンプルは今後追加予定
+
+
+### API(執筆中)
+
+#### インターフェイス
+
+##### Command
+
+###### 必須実装メソッド
+- String getName()
+  - コマンド名を返すメソッドです。
+- String getDescription()
+  - コマンドの簡易説明を返すメソッドです。
+- CommandResult execute(CommandArgument args)
+  - コマンドの実際の処理を行うメソッドです。
+  - NULLを返すと例外となります。
+
+###### 任意実装メソッド
+- CommandArgsType getArgsType()
+  - 引数の型を定義できるメソッドです。
+  - 複数の引数パターンをオーバーロードして定義できます。
+  - CommandArgument.getArgsTypeNumberで返される値はここで何番目に登録したパターンが使用されているかを意味します。
+- int getMinArgsCount()
+  - 引数の最低数を定義できます。
+- int getMaxArgsCount()
+  - 引数の最大数を定義できます。
+- SubCommands getSubCommands()
+  - Commandインターフェースを実装したクラスをサブコマンドとして定義できます。
+  - InteractiveCommandインターフェースを実装したクラスをサブコマンドとすると例外となります。
+- boolean canExecuteCommand(Object executeUser)
+  - コマンドを実行したユーザがこのコマンドを実行できるか否かを定義できます。
+  - falseを返せば実行をブロックします。
+  - Object型を引数にとるため自前実装のユーザをそのまま渡すことができます。
+  - sudoコマンド経由でコマンドが実行された場合はスキップされます。
+- String getHelp()
+  - コマンドの詳細な説明を返すメソッドです。
+- Object stringArgObjectMapper(String arg)
+  - String型引数を自前のルールに則ってJavaオブジェクトに変換するためのメソッドです。
+  - 例えば"@user:gkuri"という文字列を"gkuri"というUser型へ変換する処理等を書くことができます。
+  - 引数型判定はこのメソッドが実行された後に行われます。
+- String[] getAlias()
+  - コマンド名のエイリアスを定義できます。
+  - エイリアスが他のコマンドと重複した場合はエイリアス数が少ないコマンドが優先的に登録されます。
+- CommandSuggestion[] getArgSuggestions(int[] argsTypeNumbers, int argsPos, CommandArgument args)
+  - 補完を要求された際に実行されるメソッドです。
+  - サブコマンドは自動的にサジェストが生成されるため、ここでは引数のみのサジェストを返してください。
+  - 各引数の詳細はJavaDocを参照ください。
+- CommandResult catchException(Exception exception, CommandArgument args)
+  - executeメソッド内で例外が発生した際に呼び出されるメソッドです。
+  - CommandResultを返すことで例外メッセージ以外の実行結果に差し替えることができます。
+- Command getNewInteractiveInstance(Object interactiveData)
+  - コマンドの実行を対話モードへ移行する際に呼び出されます。
+  - コマンドクラスはステートレスな想定なので、ここでステートフルな対話用クラスの新規インスタンスを返してください。
+  - 対話用クラスのインスタンスを初期化する際に使用したいデータはCommandResultへ渡すと引数のinteractiveDataから受け取ることができます。
+- boolean isHiddenCommand()
+  - trueを返すとコマンドがサジェストに表れなくなります。
+  - 実行自体を制限するものではありません。
+
+##### InteractiveCommand
+
+##### CommandEventListener
+
+##### ExecuteArgsTypeNumber(アノテーションインターフェイス)
+
+##### ExperimentalCommand(アノテーションインターフェイス)
+
+#### DTO
+
+##### CommandArgument
+
+##### CommandResult
+
+##### CommandArgsType
+
+##### CommandSuggestion
+
+##### SubCommands
+
+#### Builder
+
+##### CommandArgumentBuilder
+
+##### CommandResultBuilder
+
+##### CommandManagerBuilder
+
+#### その他
+
+##### CommandManager(実行制御クラス)
+
+##### CommandResultStatus(enum)
 
 ---
 

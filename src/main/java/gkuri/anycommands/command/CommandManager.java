@@ -555,8 +555,10 @@ public class CommandManager {
 			args.classCastArgs(c);
 		} catch (CommandException e) {
 			if (e.getCode() == 5) {
+				@SuppressWarnings("unchecked")
 				List<CommandArgsCastInfo> info =  (List<CommandArgsCastInfo>) e.getError();
-				System.out.println(info.stream().map(i -> "num : " + i.getPatternNumber() + " || isMatch : " + i.isPatternMatch()).toList());
+				// 変換失敗した時の候補とかどこがエラーかを表示できるようにしたい
+//				System.out.println(info.stream().map(i -> "num : " + i.getPatternNumber() + " || isMatch : " + i.isPatternMatch()).toList());
 				
 				return new CommandResult(langSettingFile.getNonNull("argsTypeUnmatched").toString(), CommandResultStatus.ERROR);
 			}
