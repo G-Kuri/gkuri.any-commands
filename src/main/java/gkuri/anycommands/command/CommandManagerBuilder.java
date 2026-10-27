@@ -90,7 +90,7 @@ public class CommandManagerBuilder{
     	if(addSudo && password != null && !password.isBlank()){
             this.sudoCommandPass = password;
         } else {
-            password = null;
+        	this.sudoCommandPass = null;
         }
         return this;
     }

@@ -533,7 +533,9 @@ public class CommandManager {
 
 		for (CommandArgumentBuilder ds : downStreams) {
 			ds.setBeforeCommandResult(commandResult);
-			commandResult = doCommand(ds.build());
+			CommandArgument dsArgs = ds.build();
+			dsArgs.setSudo(args.isSudo());
+			commandResult = doCommand(dsArgs);
 		}
 		
 		return commandResult;

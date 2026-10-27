@@ -41,7 +41,7 @@ public class CommandArgument {
 	}
 	
 	public CommandArgument(String command) {
-		this("default user", command, null, new ArrayList<>(), true, List.of(), null);
+		this("default user", command, null, new ArrayList<>(), true, new ArrayList<>(), null);
 		this.splitCommandAndArgs();
 	}
 	
@@ -603,6 +603,10 @@ public class CommandArgument {
 			CommandArgumentBuilder cab = new CommandArgumentBuilder();
 			String com = ds.remove(0);
 			cab.setCommandAndArgs(com, ds.toArray(new Object[0]));
+			cab.setExecuteUser(executeUser);
+			cab.setInteractiveThreadId(interactiveThreadId);
+			cab.removeOptionsByArgs(removeOptionsByArgs);
+			
 			this.downStreams.add(cab);
 		}
 		

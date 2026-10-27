@@ -109,7 +109,7 @@ public class SudoCommand implements Command {
 
         return new CommandResultBuilder()
                     .setInteractiveMode(true)
-                    .setPrompt(textContents.get("sudoEnterPass") + " >")
+                    .setPrompt(textContents.getNonNull("sudoEnterPass") + " >")
                     .setResult("")
                     .setStatus(CommandResultStatus.RUNNING)
 					.setInteractiveData(new CheckPassword(this.commandManager, this.textContents, this.hashedPassword, commandArgument))
