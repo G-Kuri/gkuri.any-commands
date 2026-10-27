@@ -421,9 +421,49 @@ CompletableFuture<CommandResult> future = manager.executeCommandAsync(args);
 
 ##### InteractiveCommand
 
+対話コマンドを実装する際に不要なgetNameやgetDescriptionを実装せずに済むようdefault実装したクラスです。
+
+APIは`Command`と同一な為省略。
+
 ##### CommandEventListener
 
+コマンド実行前後と実行結果別に発火するイベントを購読するためのリスナークラス用インターフェイスです。
+
+必須メソッドはありません。
+
+- doBeforeExecution(CommandArgument args)
+  - コマンド実行前に発火するメソッドです
+- doAfterExecution(CommandArgument args, CommandResult result) 
+ - コマンド実行後に発火するメソッドです。
+ - ステータス別メソッドの前に発火します。
+- doResultIsError(CommandArgument args, CommandResult result) 
+ - コマンド実行後のステータスがERRORだった際に発火するメソッドです。
+ - doAfterExecutionの後に発火します。
+- doResultIsWARN(CommandArgument args, CommandResult result)
+ - コマンド実行後のステータスがWARNだった際に発火するメソッドです。
+ - doAfterExecutionの後に発火します。
+- doResultIsRunning(CommandArgument args, CommandResult result)
+ - コマンド実行後のステータスがRUNNINGだった際に発火するメソッドです。
+ - doAfterExecutionの後に発火します。
+- doResultIsSuccess(CommandArgument args, CommandResult result)
+ - コマンド実行後のステータスがSUCCESSだった際に発火するメソッドです。
+ - doAfterExecutionの後に発火します。
+- doResultIsUnexecuted(CommandArgument args, CommandResult result)
+ - コマンド実行後のステータスがUNEXECUTEDだった際に発火するメソッドです。
+ - doAfterExecutionの後に発火します。
+- catchExceptionByListener(Exception exception, CommandArgument args, CommandResult result)
+ - 各メソッドで例外が発生した際に後処理を行うためのメソッドです。
+ - doBeforeExecutionで例外が発生した場合はCommandResultがnullです。
+
 ##### ExecuteArgsTypeNumber(アノテーションインターフェイス)
+
+Commandクラス内のメソッドに付けるアノテーションです。
+
+引数の型をオーバーロードするように複数登録されている場合、このアノテーションを付けることで
+
+executeに代わってargs.getArgsTypePatternNumberが一致するメソッドが自動で振り分けられ、実行されます。
+
+引数はターゲットとするargsTypePatternNumber(int)です。
 
 ##### ExperimentalCommand(アノテーションインターフェイス)
 
