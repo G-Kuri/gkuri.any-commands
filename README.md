@@ -431,29 +431,29 @@ APIは`Command`と同一な為省略。
 
 必須メソッドはありません。
 
-- doBeforeExecution(CommandArgument args)
+- void doBeforeExecution(CommandArgument args)
   - コマンド実行前に発火するメソッドです
-- doAfterExecution(CommandArgument args, CommandResult result) 
- - コマンド実行後に発火するメソッドです。
- - ステータス別メソッドの前に発火します。
-- doResultIsError(CommandArgument args, CommandResult result) 
- - コマンド実行後のステータスがERRORだった際に発火するメソッドです。
- - doAfterExecutionの後に発火します。
-- doResultIsWARN(CommandArgument args, CommandResult result)
- - コマンド実行後のステータスがWARNだった際に発火するメソッドです。
- - doAfterExecutionの後に発火します。
-- doResultIsRunning(CommandArgument args, CommandResult result)
- - コマンド実行後のステータスがRUNNINGだった際に発火するメソッドです。
- - doAfterExecutionの後に発火します。
-- doResultIsSuccess(CommandArgument args, CommandResult result)
- - コマンド実行後のステータスがSUCCESSだった際に発火するメソッドです。
- - doAfterExecutionの後に発火します。
-- doResultIsUnexecuted(CommandArgument args, CommandResult result)
- - コマンド実行後のステータスがUNEXECUTEDだった際に発火するメソッドです。
- - doAfterExecutionの後に発火します。
-- catchExceptionByListener(Exception exception, CommandArgument args, CommandResult result)
- - 各メソッドで例外が発生した際に後処理を行うためのメソッドです。
- - doBeforeExecutionで例外が発生した場合はCommandResultがnullです。
+- void doAfterExecution(CommandArgument args, CommandResult result) 
+  - コマンド実行後に発火するメソッドです。
+  - ステータス別メソッドの前に発火します。
+- void doResultIsError(CommandArgument args, CommandResult result) 
+  - コマンド実行後のステータスがERRORだった際に発火するメソッドです。
+  - doAfterExecutionの後に発火します。
+- void doResultIsWARN(CommandArgument args, CommandResult result)
+  - コマンド実行後のステータスがWARNだった際に発火するメソッドです。
+  - doAfterExecutionの後に発火します。
+- void doResultIsRunning(CommandArgument args, CommandResult result)
+  - コマンド実行後のステータスがRUNNINGだった際に発火するメソッドです。
+  - doAfterExecutionの後に発火します。
+- void doResultIsSuccess(CommandArgument args, CommandResult result)
+  - コマンド実行後のステータスがSUCCESSだった際に発火するメソッドです。
+  - doAfterExecutionの後に発火します。
+- void doResultIsUnexecuted(CommandArgument args, CommandResult result)
+  - コマンド実行後のステータスがUNEXECUTEDだった際に発火するメソッドです。
+  - doAfterExecutionの後に発火します。
+- void catchExceptionByListener(Exception exception, CommandArgument args, CommandResult result)
+  - 各メソッドで例外が発生した際に後処理を行うためのメソッドです。
+  - doBeforeExecutionで例外が発生した場合はCommandResultがnullです。
 
 ##### ExecuteArgsTypeNumber(アノテーションインターフェイス)
 
@@ -463,13 +463,70 @@ Commandクラス内のメソッドに付けるアノテーションです。
 
 executeに代わってargs.getArgsTypePatternNumberが一致するメソッドが自動で振り分けられ、実行されます。
 
-引数はターゲットとするargsTypePatternNumber(int)です。
+引数はターゲットとするargsTypePatternNumber(int型)です。
 
 ##### ExperimentalCommand(アノテーションインターフェイス)
+
+Commandクラスにつけるアノテーションです。
+
+このアノテーションがついているクラスはCommandManagerBuilderのaddExperimentalCommandがtrueの時のみCommandManagerに登録されます。
 
 #### DTO
 
 ##### CommandArgument
+
+コマンド実行時に使用するコンテキストを引数として一纏めにしたDTOクラスです。
+
+文字列のコマンドのみ設定すれば良い場合はString引数のコンストラクタから初期化できますが
+
+基本的にはCommandArgumentBuilderから実行ユーザ等設定して初期化を行ってください。
+
+- String getNativeCommand()
+  - 実際に入力されたコマンドをString型で返します。
+- String getCommand()
+  - コマンド名を返します。
+- <T> T getArg(int index)
+  - indexで指定された位置の引数を返します。
+- Class<?> getArgType(int index)
+  - indexで指定された位置の引数の型を返します。
+- Class<?>[] getArgsTypePattern()
+  - 型チェック時に判明した引数型のパターンを返します。
+  - CommandArgsType.addArgsTypePatternで登録したClass型配列です。
+- String getArgString(int index)
+  - indexで指定された位置の引数をStringで返します。
+- Integer getArgInteger(int index)
+  - indexで指定された位置の引数をIntegerで返します。
+  - 指定された位置の引数がInteger型ではない場合、ClassCastExceptionを投げます。
+- Boolean getArgBoolean(int index)
+  - indexで指定された位置の引数をBooleanで返します。
+  - 指定された位置の引数がBoolean型ではない場合、ClassCastExceptionを投げます。
+- List<Object> getArgs()
+  - 引数をListで返します。
+- Long getInteractiveThreadId()
+  - インタラクティブIDを返します。
+  - コマンドの実行結果がインタラクティブではない場合nullが返ります。
+- boolean argsIsEmpty()
+  - 引数が空か否かを返します。
+- Object getExecuteUser()
+  - コマンドを実行したユーザを返します。
+- String[] getOptions()
+  - 全ての引数オプションをString配列で返します。
+- boolean hasOption(String option)
+  - optionで指定した引数オプションが存在するか否かを返します。
+- boolean hasOptionIgnoreCase(String option)
+  - optionで指定した引数オプションが存在するか否かを返します。
+  - hasOptionと違い厳格ではなく、大文字小文字の違いを無視します。
+- int getArgsCount()
+  - 引数の数を返します。
+- boolean argsCountIs(int count)
+  - 引数の数が指定された数と一致しているかを返します。
+- int getArgsTypePatternNumber()
+  - 引数の型のパターンがCommand.getArgsType内で何番目に登録されたパターンかを返します。
+- CommandResult getBeforeCommandResult()
+  - パイプ"|"で繋がれた、直前に実行されたコマンドの結果を返します。
+  - パイプでつながれたコマンドが無い場合はnullが返ります。
+- boolean isSudo()
+  - sudoコマンド経由で実行されたか否かを返します。
 
 ##### CommandResult
 
