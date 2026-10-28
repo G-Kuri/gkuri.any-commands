@@ -471,6 +471,8 @@ Commandクラスにつけるアノテーションです。
 
 このアノテーションがついているクラスはCommandManagerBuilderのaddExperimentalCommandがtrueの時のみCommandManagerに登録されます。
 
+---
+
 #### DTO
 
 ##### CommandArgument
@@ -536,6 +538,8 @@ Commandクラスにつけるアノテーションです。
 
 ##### SubCommands
 
+---
+
 #### Builder
 
 ##### CommandArgumentBuilder
@@ -543,6 +547,8 @@ Commandクラスにつけるアノテーションです。
 ##### CommandResultBuilder
 
 ##### CommandManagerBuilder
+
+---
 
 #### その他
 
