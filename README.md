@@ -348,213 +348,205 @@ CompletableFuture<CommandResult> future = manager.executeCommandAsync(args);
 
 ---
 
-## 実装例
+## 実装例(執筆中)
 
-詳細な実装例は以下を参照してください。
+ここでは、各機能を利用する実装例を紹介します。
 
-独自コマンドの作成
-型付き引数の利用
-サブコマンドの実装
-対話型コマンドの実装
-イベントリスナの実装
+※詳細な注意点は別途作成中のドキュメントに記載予定です。
 
-※サンプルは今後追加予定
+### CommandManagerBuilderから標準機能の有効/無効を設定
+```java
+CommandManager manager = new CommandManagerBuilder()
+		.addHelpCommand(true) // helpコマンドを追加します
+		.addEchoCommand(true) // echoコマンドを追加します
+		.addHistoryCommand(true) // historyコマンドを追加します
+		.addSudoCommand(true, "pass") // sudoコマンドを追加します。パスワードがNULLか空文字だとtrueになりません
+		.showTypoSuggest(true) // コマンドが見つからなかった際のメッセージに候補を含めるかを設定します
+		.setHoldHistoriesCount(100) // historyコマンドが保持する履歴の数を制限します
+		.setLanguage("ja-jp") // 各種メッセージの言語を設定します。現状ja-jpとen-usに対応しています
+		.setMaxRunningAsyncCommandsCount(3) // 非同期実行コマンドの同時実行数の上限を設定します
+		.setExecutor(Executors.newFixedThreadPool(3)) // 非同期実行コマンドが使用するExecuterを設定します
+		.addExperimentalCommand(false) // ExperimentalCommandアノテーションがついたコマンドを追加するかを設定します
+		.build();
+```
 
+### 自分で作成したコマンドを追加
 
-### API(執筆中)
+まず`Command`をimplしたクラスを作成してください。
 
-#### インターフェイス
+例として`add`コマンドを作成します。
 
-##### Command
+```java
+public class AddCommand implements Command {
 
-コマンドの本体です。実際の処理や各種制限、引数型やサブコマンドを定義するためのインターフェイスクラスです。
+	@Override
+	public String getName() {
+		return "add";
+	}
 
-###### 必須実装メソッド
-- String getName()
-  - コマンド名を返すメソッドです。
-- String getDescription()
-  - コマンドの簡易説明を返すメソッドです。
-- CommandResult execute(CommandArgument args)
-  - コマンドの実際の処理を行うメソッドです。
-  - NULLを返すと例外となります。
+	@Override
+	public String getDescription() {
+		return "引数の2値の和を返します";
+	}
+	
+	@Override
+	public int getMaxArgsCount() {
+		return 2;
+	}
+	
+	@Override
+	public int getMinArgsCount() {
+		return 2;
+	}
+	
+	@Override
+	public CommandArgsType getArgsType() {
+		return new CommandArgsType().addArgsTypePattern(Integer.class, Integer.class);
+	}
 
-###### 任意実装メソッド
-- CommandArgsType getArgsType()
-  - 引数の型を定義できるメソッドです。
-  - 複数の引数パターンをオーバーロードして定義できます。
-  - CommandArgument.getArgsTypeNumberで返される値はここで何番目に登録したパターンが使用されているかを意味します。
-- int getMinArgsCount()
-  - 引数の最低数を定義できます。
-- int getMaxArgsCount()
-  - 引数の最大数を定義できます。
-- SubCommands getSubCommands()
-  - Commandインターフェースを実装したクラスをサブコマンドとして定義できます。
-  - InteractiveCommandインターフェースを実装したクラスをサブコマンドとすると例外となります。
-- boolean canExecuteCommand(Object executeUser)
-  - コマンドを実行したユーザがこのコマンドを実行できるか否かを定義できます。
-  - falseを返せば実行をブロックします。
-  - Object型を引数にとるため自前実装のユーザをそのまま渡すことができます。
-  - sudoコマンド経由でコマンドが実行された場合はスキップされます。
-- String getHelp()
-  - コマンドの詳細な説明を返すメソッドです。
-- Object stringArgObjectMapper(String arg)
-  - String型引数を自前のルールに則ってJavaオブジェクトに変換するためのメソッドです。
-  - 例えば"@user:gkuri"という文字列を"gkuri"というUser型へ変換する処理等を書くことができます。
-  - 引数型判定はこのメソッドが実行された後に行われます。
-- String[] getAlias()
-  - コマンド名のエイリアスを定義できます。
-  - エイリアスが他のコマンドと重複した場合はエイリアス数が少ないコマンドが優先的に登録されます。
-- CommandSuggestion[] getArgSuggestions(int[] argsTypeNumbers, int argsPos, CommandArgument args)
-  - 補完を要求された際に実行されるメソッドです。
-  - サブコマンドは自動的にサジェストが生成されるため、ここでは引数のみのサジェストを返してください。
-  - 各引数の詳細はJavaDocを参照ください。
-- CommandResult catchException(Exception exception, CommandArgument args)
-  - executeメソッド内で例外が発生した際に呼び出されるメソッドです。
-  - CommandResultを返すことで例外メッセージ以外の実行結果に差し替えることができます。
-- Command getNewInteractiveInstance(Object interactiveData)
-  - コマンドの実行を対話モードへ移行する際に呼び出されます。
-  - コマンドクラスはステートレスな想定なので、ここでステートフルな対話用クラスの新規インスタンスを返してください。
-  - 対話用クラスのインスタンスを初期化する際に使用したいデータはCommandResultへ渡すと引数のinteractiveDataから受け取ることができます。
-- boolean isHiddenCommand()
-  - trueを返すとコマンドがサジェストに表れなくなります。
-  - 実行自体を制限するものではありません。
+	@Override
+	public CommandResult execute(CommandArgument args) {
+		return new CommandResult(args.getArgInteger(0) + args.getArgInteger(1));
+	}
 
-##### InteractiveCommand
+}
+```
 
-対話コマンドを実装する際に不要なgetNameやgetDescriptionを実装せずに済むようdefault実装したクラスです。
+このクラスを`CommandManagerBuilder`から登録します。
 
-APIは`Command`と同一な為省略。
+```java
+CommandManager manager = new CommandManagerBuilder()
+				.addHelpCommand(true) // 今回はhelpも有効化しています
+				.addCommand(new AddCommand())
+				.build();
+```
 
-##### CommandEventListener
+これを以下のように実行します。
 
-コマンド実行前後と実行結果別に発火するイベントを購読するためのリスナークラス用インターフェイスです。
+```java
+System.out.println(manager.executeCommand(new CommandArgument("help")).getResult());
+		
+System.out.println(manager.executeCommand(new CommandArgument("add 123")).getResult());
 
-必須メソッドはありません。
+System.out.println(manager.executeCommand(new CommandArgument("add 123 456 789")).getResult());
 
-- void doBeforeExecution(CommandArgument args)
-  - コマンド実行前に発火するメソッドです
-- void doAfterExecution(CommandArgument args, CommandResult result) 
-  - コマンド実行後に発火するメソッドです。
-  - ステータス別メソッドの前に発火します。
-- void doResultIsError(CommandArgument args, CommandResult result) 
-  - コマンド実行後のステータスがERRORだった際に発火するメソッドです。
-  - doAfterExecutionの後に発火します。
-- void doResultIsWARN(CommandArgument args, CommandResult result)
-  - コマンド実行後のステータスがWARNだった際に発火するメソッドです。
-  - doAfterExecutionの後に発火します。
-- void doResultIsRunning(CommandArgument args, CommandResult result)
-  - コマンド実行後のステータスがRUNNINGだった際に発火するメソッドです。
-  - doAfterExecutionの後に発火します。
-- void doResultIsSuccess(CommandArgument args, CommandResult result)
-  - コマンド実行後のステータスがSUCCESSだった際に発火するメソッドです。
-  - doAfterExecutionの後に発火します。
-- void doResultIsUnexecuted(CommandArgument args, CommandResult result)
-  - コマンド実行後のステータスがUNEXECUTEDだった際に発火するメソッドです。
-  - doAfterExecutionの後に発火します。
-- void catchExceptionByListener(Exception exception, CommandArgument args, CommandResult result)
-  - 各メソッドで例外が発生した際に後処理を行うためのメソッドです。
-  - doBeforeExecutionで例外が発生した場合はCommandResultがnullです。
+System.out.println(manager.executeCommand(new CommandArgument("add 123 456")).getResult());
+```
 
-##### ExecuteArgsTypeNumber(アノテーションインターフェイス)
+すると、以下のような出力となります。
 
-Commandクラス内のメソッドに付けるアノテーションです。
+```Plain Text
+add - 引数の2値の和を返します
+help - コマンド一覧を返します。
 
-引数の型をオーバーロードするように複数登録されている場合、このアノテーションを付けることで
+引数が不足しています。
+引数が多すぎます。
+579
+```
 
-executeに代わってargs.getArgsTypePatternNumberが一致するメソッドが自動で振り分けられ、実行されます。
+これが基本的なコマンド作成から実行までの流れです。
 
-引数はターゲットとするargsTypePatternNumber(int型)です。
+```java
+new CommandArgument("add 123 456")
+```
 
-##### ExperimentalCommand(アノテーションインターフェイス)
+は、すべて文字列で入力する場合を想定していますが、Javaオブジェクトを直接引数にすることも可能です。
 
-Commandクラスにつけるアノテーションです。
+Javaオブジェクトを引数に入れる場合は以下のように引数を生成します。
 
-このアノテーションがついているクラスはCommandManagerBuilderのaddExperimentalCommandがtrueの時のみCommandManagerに登録されます。
+```java
+new CommandArgumentBuilder()
+			.setCommand("add")
+			.addArg(123)
+			.addArg(456)
+			.build();
+```
+又は
+```java
+new CommandArgumentBuilder()
+			.setCommandAndArgs("add", 123, 456)
+			.build();
+```
 
----
+現在受け付ける引数型は`Integer`と`Integer`の組み合わせのみですが
 
-#### DTO
+引数型はオーバーロードすることができます。
 
-##### CommandArgument
+例として、`add`コマンドを`Double`型に対応するように引数型をオーバーロードします。
 
-コマンド実行時に使用するコンテキストを引数として一纏めにしたDTOクラスです。
+`getArgsType`メソッドを以下のようにします。
 
-文字列のコマンドのみ設定すれば良い場合はString引数のコンストラクタから初期化できますが
+```java
+@Override
+public CommandArgsType getArgsType() {
+	return new CommandArgsType()
+			.addArgsTypePattern(Integer.class, Integer.class)
+			.addArgsTypePattern(Double.class, Double.class)
+			.addArgsTypePattern(Integer.class, Double.class)
+			.addArgsTypePattern(Double.class, Integer.class);
+}
+```
 
-基本的にはCommandArgumentBuilderから実行ユーザ等設定して初期化を行ってください。
+これで、`Double`型に対応できます。
 
-- String getNativeCommand()
-  - 実際に入力されたコマンドをString型で返します。
-- String getCommand()
-  - コマンド名を返します。
-- <T> T getArg(int index)
-  - indexで指定された位置の引数を返します。
-- Class<?> getArgType(int index)
-  - indexで指定された位置の引数の型を返します。
-- Class<?>[] getArgsTypePattern()
-  - 型チェック時に判明した引数型のパターンを返します。
-  - CommandArgsType.addArgsTypePatternで登録したClass型配列です。
-- String getArgString(int index)
-  - indexで指定された位置の引数をStringで返します。
-- Integer getArgInteger(int index)
-  - indexで指定された位置の引数をIntegerで返します。
-  - 指定された位置の引数がInteger型ではない場合、ClassCastExceptionを投げます。
-- Boolean getArgBoolean(int index)
-  - indexで指定された位置の引数をBooleanで返します。
-  - 指定された位置の引数がBoolean型ではない場合、ClassCastExceptionを投げます。
-- List<Object> getArgs()
-  - 引数をListで返します。
-- Long getInteractiveThreadId()
-  - インタラクティブIDを返します。
-  - コマンドの実行結果がインタラクティブではない場合nullが返ります。
-- boolean argsIsEmpty()
-  - 引数が空か否かを返します。
-- Object getExecuteUser()
-  - コマンドを実行したユーザを返します。
-- String[] getOptions()
-  - 全ての引数オプションをString配列で返します。
-- boolean hasOption(String option)
-  - optionで指定した引数オプションが存在するか否かを返します。
-- boolean hasOptionIgnoreCase(String option)
-  - optionで指定した引数オプションが存在するか否かを返します。
-  - hasOptionと違い厳格ではなく、大文字小文字の違いを無視します。
-- int getArgsCount()
-  - 引数の数を返します。
-- boolean argsCountIs(int count)
-  - 引数の数が指定された数と一致しているかを返します。
-- int getArgsTypePatternNumber()
-  - 引数の型のパターンがCommand.getArgsType内で何番目に登録されたパターンかを返します。
-- CommandResult getBeforeCommandResult()
-  - パイプ"|"で繋がれた、直前に実行されたコマンドの結果を返します。
-  - パイプでつながれたコマンドが無い場合はnullが返ります。
-- boolean isSudo()
-  - sudoコマンド経由で実行されたか否かを返します。
+ただし、このままでは`execute`メソッドで使用している`args.getArgInteger`で例外が発生します。
 
-##### CommandResult
+そのため、以下のように変更します。
 
-##### CommandArgsType
+```java
+@Override
+public CommandResult execute(CommandArgument args) {
+	switch (args.getArgsTypePatternNumber()) {
+		case 0:
+			return new CommandResult(args.getArgInteger(0) + args.getArgInteger(1));
+		case 1:
+			return new CommandResult((Double)args.getArg(0) + (Double)args.getArg(1));
+		case 2:
+			return new CommandResult(args.getArgInteger(0) + (Double)args.getArg(1));
+		case 3:
+			return new CommandResult((Double)args.getArg(0) + args.getArgInteger(1));
+		default:
+			return new CommandResult("error", CommandResultStatus.ERROR);
+	}
+}
+```
 
-##### CommandSuggestion
+`args.getArgsTypePatternNumber`は、今回合致した引数のパターンが何番目に登録されたものかを返します。
 
-##### SubCommands
+また、この実装ではswitchやif-else if-elseによる分岐が大量に発生してしまいます。
 
----
+その際は`ExecuteArgsTypeNumber`アノテーションを使用することで回避が可能です。
 
-#### Builder
+このアノテーションを使用して先ほどの`execute`と概念的には同じ実装をする場合は以下のようになります。
 
-##### CommandArgumentBuilder
+```java
+@Override
+public CommandResult execute(CommandArgument args) {
+	return new CommandResult("error", CommandResultStatus.ERROR);
+}
 
-##### CommandResultBuilder
+@ExecuteArgsTypeNumber(0)
+public CommandResult executePattern0(CommandArgument args) {
+	return new CommandResult(args.getArgInteger(0) + args.getArgInteger(1));
+}
 
-##### CommandManagerBuilder
+@ExecuteArgsTypeNumber(1)
+public CommandResult executePattern1(CommandArgument args) {
+	return new CommandResult((Double)args.getArg(0) + (Double)args.getArg(1));
+}
 
----
+@ExecuteArgsTypeNumber(2)
+public CommandResult executePattern2(CommandArgument args) {
+	return new CommandResult(args.getArgInteger(0) + (Double)args.getArg(1));
+}
 
-#### その他
+@ExecuteArgsTypeNumber(3)
+public CommandResult executePattern3(CommandArgument args) {
+	return new CommandResult((Double)args.getArg(0) + args.getArgInteger(1));
+}
+```
 
-##### CommandManager(実行制御クラス)
-
-##### CommandResultStatus(enum)
+以下加筆中。
 
 ---
 
