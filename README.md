@@ -352,27 +352,27 @@ CompletableFuture<CommandResult> future = manager.executeCommandAsync(args);
 
 ここでは、各機能を利用する実装例を紹介します。
 
-※詳細な注意点は別途作成中のドキュメントに記載予定です。
+クラス、メソッド別のドキュメントはJavaDocをご参照ください。
 
 ### CommandManagerBuilderから標準機能の有効/無効を設定
 ```java
 CommandManager manager = new CommandManagerBuilder()
-		.addHelpCommand(true) // helpコマンドを追加します
-		.addEchoCommand(true) // echoコマンドを追加します
-		.addHistoryCommand(true) // historyコマンドを追加します
-		.addSudoCommand(true, "pass") // sudoコマンドを追加します。パスワードがNULLか空文字だとtrueになりません
+		.addHelpCommand(true)
+		.addEchoCommand(true)
+		.addHistoryCommand(true)
+		.addSudoCommand(true, "pass") // パスワードがNULLか空文字だとtrueになりません
 		.showTypoSuggest(true) // コマンドが見つからなかった際のメッセージに候補を含めるかを設定します
-		.setHoldHistoriesCount(100) // historyコマンドが保持する履歴の数を制限します
-		.setLanguage("ja-jp") // 各種メッセージの言語を設定します。現状ja-jpとen-usに対応しています
-		.setMaxRunningAsyncCommandsCount(3) // 非同期実行コマンドの同時実行数の上限を設定します
-		.setExecutor(Executors.newFixedThreadPool(3)) // 非同期実行コマンドが使用するExecuterを設定します
-		.addExperimentalCommand(false) // ExperimentalCommandアノテーションがついたコマンドを追加するかを設定します
+		.setHoldHistoriesCount(100)
+		.setLanguage("ja-jp") // 現状ja-jpとen-usに対応しています
+		.setMaxRunningAsyncCommandsCount(3)
+		.setExecutor(Executors.newFixedThreadPool(3))
+		.addExperimentalCommand(false)
 		.build();
 ```
 
 ### 自分で作成したコマンドを追加
 
-まず`Command`をimplしたクラスを作成してください。
+まず`Command`を実装したクラスを作成してください。
 
 例として`add`コマンドを作成します。
 
@@ -430,6 +430,8 @@ System.out.println(manager.executeCommand(new CommandArgument("add 123")).getRes
 
 System.out.println(manager.executeCommand(new CommandArgument("add 123 456 789")).getResult());
 
+System.out.println(manager.executeCommand(new CommandArgument("add Hello World")).getResult());
+
 System.out.println(manager.executeCommand(new CommandArgument("add 123 456")).getResult());
 ```
 
@@ -441,10 +443,15 @@ help - コマンド一覧を返します。
 
 引数が不足しています。
 引数が多すぎます。
+引数の型が不正です。
 579
 ```
 
 これが基本的なコマンド作成から実行までの流れです。
+
+### Javaオブジェクトを引数に
+
+現在の
 
 ```java
 new CommandArgument("add 123 456")
@@ -467,6 +474,8 @@ new CommandArgumentBuilder()
 			.setCommandAndArgs("add", 123, 456)
 			.build();
 ```
+
+### 引数型のオーバーロード
 
 現在受け付ける引数型は`Integer`と`Integer`の組み合わせのみですが
 
@@ -513,11 +522,13 @@ public CommandResult execute(CommandArgument args) {
 
 `args.getArgsTypePatternNumber`は、今回合致した引数のパターンが何番目に登録されたものかを返します。
 
-また、この実装ではswitchやif-else if-elseによる分岐が大量に発生してしまいます。
+### 引数型パターン別メソッドの定義
+
+現在の実装ではswitchやif-else if-elseによる分岐が大量に発生してしまいます。
 
 その際は`ExecuteArgsTypeNumber`アノテーションを使用することで回避が可能です。
 
-このアノテーションを使用して先ほどの`execute`と概念的には同じ実装をする場合は以下のようになります。
+このアノテーションを使用して先ほどの`execute`と概念的に同じ実装をする場合、以下のようになります。
 
 ```java
 @Override
