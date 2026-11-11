@@ -1,6 +1,7 @@
 package sample;
 
 import gkuri.anycommands.command.CommandArgument;
+import gkuri.anycommands.command.CommandArgumentBuilder;
 import gkuri.anycommands.command.CommandManager;
 import gkuri.anycommands.command.CommandManagerBuilder;
 import sample.base.AddCommand;
@@ -21,6 +22,10 @@ public class Tester {
 		System.out.println(manager.executeCommand(new CommandArgument("add 123 456 789")).getResult());
 		
 		System.out.println(manager.executeCommand(new CommandArgument("add 123 456")).getResult());
+		
+		new CommandArgumentBuilder().setCommand("add").setArgs(123, 456).build();
+		new CommandArgumentBuilder().setCommand("add").addArg(123).addArg(456).build();
+		new CommandArgumentBuilder().setCommandAndArgs("add", 123, 456).build();
 	}
 	
 }
