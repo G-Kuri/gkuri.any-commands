@@ -30,8 +30,17 @@ public class Test {
 		executeCommand("args '' 123");
 		executeCommand("args 456.456");
 		executeCommand("args 123 456.456");
+		
 		executeCommand(new CommandArgumentBuilder().setCommand("args").setArgs(123, 456.456).build());
 		executeCommand(new CommandArgumentBuilder().setCommand("args").setArgs(123.456, new Test()).build());
+		
+		executeCommand("args sub 123");
+		executeCommand("args sub 456.456F");
+		executeCommand("args sub 2003.10.26");
+		executeCommand("args sub '' 123");
+		executeCommand("args sub 456.456");
+		executeCommand("args sub 123 456.456");
+		
 		executeCommand("history");
 		executeCommand("admin");
 		CommandResult cr = manager.executeCommand(new CommandArgument("sudo admin"));

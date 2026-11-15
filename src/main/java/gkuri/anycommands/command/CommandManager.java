@@ -506,7 +506,7 @@ public class CommandManager {
 			List<CommandEventListener> listener = addComEventListenerReg(new ArrayList<>(), c);
 
 			if (!(c instanceof SudoCommand)) {
-				return executeCommandFromSudo(c, args, listener);
+				return executeCommandFromOtherThanSudo(c, args, listener);
 			}
 
 			return runCommandLifeTime(c, args, listener);
@@ -546,7 +546,6 @@ public class CommandManager {
 	}
 	
 	protected CommandResult runCommandLifeTime(Command c, CommandArgument args, List<CommandEventListener> listener) {
-		doListenersBeforeEvent(listener, args);
 
 		if (args.getArgs().size() < c.getMinArgsCount())
 			return new CommandResult(langSettingFile.getNonNull("tooFewArgs").toString(), CommandResultStatus.ERROR);
@@ -555,6 +554,16 @@ public class CommandManager {
 		
 		try {
 			args.classCastArgs(c);
+			
+			CommandArgsTypePattern pattern = args.getCommandArgsTypePattern();
+			if(args.getArgsTypePatternNumber() != -1 && pattern.isStrictQuantity()) {
+				if(pattern.getArgsType().length < args.getArgsCount()) {
+					return new CommandResult(langSettingFile.getNonNull("tooManyArgs").toString(), CommandResultStatus.ERROR);
+				} else if(args.getArgsCount() < pattern.getArgsType().length) {
+					return new CommandResult(langSettingFile.getNonNull("tooFewArgs").toString(), CommandResultStatus.ERROR);
+				}
+			}
+			
 		} catch (CommandException e) {
 			if (e.getCode() == 5) {
 				@SuppressWarnings("unchecked")
@@ -567,6 +576,8 @@ public class CommandManager {
 			
 			throw e;
 		}
+		
+		doListenersBeforeEvent(listener, args);
 		
 		CommandResult result = tryExecuteCommand(c, args);
 
@@ -625,7 +636,7 @@ public class CommandManager {
 		return result;
 	}
 	
-	protected CommandResult executeCommandFromSudo(Command c, CommandArgument args, List<CommandEventListener> sudoEventListener) {
+	protected CommandResult executeCommandFromOtherThanSudo(Command c, CommandArgument args, List<CommandEventListener> sudoEventListener) {
 		while (args.getArgs().size() != 0) {
 			Map<String, Command> subs = c.getSubCommands().getSubCommandsMap();
 			if (subs == null)
@@ -664,7 +675,7 @@ public class CommandManager {
 	 * @param args
 	 * @return
 	 */
-	public CompletableFuture<CommandResult> executeCommandAsync(CommandArgument args) {
+	public synchronized CompletableFuture<CommandResult> executeCommandAsync(CommandArgument args) {
 		if (isInstanceBusy())
 			throw new CommandException(7, getRunningAsyncCommandsCount());
 		if (isAllBusy())

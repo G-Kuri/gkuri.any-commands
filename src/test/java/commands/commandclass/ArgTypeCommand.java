@@ -8,6 +8,7 @@ import gkuri.anycommands.command.Command;
 import gkuri.anycommands.command.CommandArgsType;
 import gkuri.anycommands.command.CommandArgument;
 import gkuri.anycommands.command.CommandResult;
+import gkuri.anycommands.command.SubCommands;
 
 public class ArgTypeCommand implements Command {
 
@@ -27,6 +28,11 @@ public class ArgTypeCommand implements Command {
 	@Override
 	public String getDescription() {
 		return "show args type";
+	}
+	
+	@Override
+	public SubCommands getSubCommands() {
+		return new SubCommands().addSubCommands(new ArgsSubCommand());
 	}
 	
 	@Override

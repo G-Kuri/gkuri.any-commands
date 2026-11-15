@@ -9,7 +9,7 @@ public class CommandArgumentBuilder {
     
     private String command = null;
 	private List<Object> args = new ArrayList<>();
-	private Object executeUser = null;
+	private Object executeUser = "default user";
 	private Long interactiveThreadId = null;
     private boolean removeOptionsByArgs = true;
     private List<CommandArgumentBuilder> downStreams = new ArrayList<>();
@@ -20,7 +20,6 @@ public class CommandArgumentBuilder {
      * @return
      */
     public CommandArgument build(){
-        if(this.executeUser == null) this.executeUser = "default user";
         CommandArgument ca = new CommandArgument(this.executeUser, this.command, this.interactiveThreadId, this.args, this.removeOptionsByArgs, this.downStreams, this.beforeCommandResult);
         if(this.args.isEmpty()){
             if(this.interactiveThreadId != null){
@@ -66,6 +65,7 @@ public class CommandArgumentBuilder {
      * @return
      */
     public CommandArgumentBuilder setArgs(Object... args){
+    	this.args.clear();
     	for(Object a : args){
             if(a instanceof List<?> list){
                 this.args.addAll(list);

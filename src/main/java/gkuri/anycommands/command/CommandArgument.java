@@ -32,7 +32,7 @@ public class CommandArgument {
 	private List<CommandArgumentBuilder> downStreams;
 	private CommandResult beforeCommandResult;
 	
-	private Class<?>[] matchPattern = {};
+	private CommandArgsTypePattern matchPattern = null;
 	private boolean splitAndParseStringArgsCompleated = false;
 	private int ignoreOptionPos = Integer.MAX_VALUE;
 	
@@ -86,7 +86,7 @@ public class CommandArgument {
 		newArgs.beforeCommandResult = args.beforeCommandResult;
 		newArgs.nativeCommand = args.nativeCommand;
 		newArgs.patternNumber = args.patternNumber;
-		newArgs.matchPattern = Arrays.copyOf(args.matchPattern, args.matchPattern.length);
+		newArgs.matchPattern = args.matchPattern;
 		newArgs.splitAndParseStringArgsCompleated = args.splitAndParseStringArgsCompleated;
 		
 		return newArgs;
@@ -119,6 +119,13 @@ public class CommandArgument {
 		if(index < 0 || this.args.size() <= index) return null;
 		return (T) this.args.get(index);
 	}
+	
+	public <T> T getArg(int index, Class<T> clazz) {
+		if(!clazz.isInstance(this.args.get(index))) {
+			throw new ClassCastException(clazz.getSimpleName() + " unmatch args type.");
+		}
+		return clazz.cast(this.args.get(index));
+	}
 
 	/**
 	 * indexで指定された位置の引数の型を返します。
@@ -126,8 +133,8 @@ public class CommandArgument {
 	 * @return
 	 */
 	public Class<?> getArgType(int index){
-		if(this.matchPattern.length <= index) return this.args.get(index).getClass();
-		return this.matchPattern[index];
+		if(this.matchPattern.getArgsType().length <= index) return this.args.get(index).getClass();
+		return this.matchPattern.getArgsType()[index];
 	}
 	
 	/**
@@ -135,7 +142,11 @@ public class CommandArgument {
 	 * @return
 	 */
 	public Class<?>[] getArgsTypePattern(){
-		return Arrays.copyOf(this.matchPattern, this.matchPattern.length);
+		return this.matchPattern.getArgsType();
+	}
+	
+	protected CommandArgsTypePattern getCommandArgsTypePattern() {
+		return this.matchPattern;
 	}
 
 	/**
@@ -303,7 +314,7 @@ public class CommandArgument {
 // cast
 	
 	protected int[] tryClassCast(Command c, boolean hopeNextArg) {
-		List<Class<?>[]> patterns = c.getArgsType().getArgsType();
+		List<CommandArgsTypePattern> patterns = c.getArgsType().getArgsType();
 		if(patterns == null || patterns.isEmpty()) return new int[0];
 		
 		List<Integer> matchPattern = new ArrayList<>();
@@ -317,7 +328,7 @@ public class CommandArgument {
 		}
 		
 		for(int i = 0; i < this.args.size(); i++) {
-			Class<?>[] pattern = patterns.get(i);
+			Class<?>[] pattern = patterns.get(i).getArgsType();
 			try {
 				CommandArgsCastInfo elem = castByPattern(Arrays.copyOf(pattern, this.args.size() - (hopeNextArg ? 0 : 1)), argObjArr);
 				if(elem.getResultObject().length == 0 || !elem.isPatternMatch()) continue;
@@ -333,40 +344,40 @@ public class CommandArgument {
 	
 	protected Object[] classCastArgs(Command command) {
 		if(this.args.isEmpty()) return this.args.toArray();
-		List<Class<?>[]> patterns = command.getArgsType().getArgsType();
+		List<CommandArgsTypePattern> patterns = command.getArgsType().getArgsType();
 		if(patterns == null) return this.args.toArray();
 
 		if (patterns.isEmpty()) {
 			return this.args.toArray();
 		} else {
 			List<CommandArgsCastInfo> errorCastInfo = new ArrayList<>();
-			List<Duo<Integer, Class<?>[]>> sortedPatterns = new ArrayList<>();
+			List<Duo<Integer, CommandArgsTypePattern>> sortedPatterns = new ArrayList<>();
 			for(int i = 0; i < patterns.size(); i++){
 				sortedPatterns.add(new Duo<>(i, patterns.get(i)));
 			}
 			
 			sortedPatterns.sort((a, b) -> {
-				if(b.getSecond().length == a.getSecond().length) {
-					for(int i = 0; i < a.getSecond().length; i++) {
-						if(a.getSecond()[i] == String.class && b.getSecond()[i] != String.class) return 1;
-						if(b.getSecond()[i] == String.class && a.getSecond()[i] != String.class) return -1;
-						if(a.getSecond()[i] == Long.class && b.getSecond()[i] == Integer.class) return 1;
-						if(b.getSecond()[i] == Long.class && a.getSecond()[i] == Integer.class) return -1;
-						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] != Number.class) return 1;
-						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] != Number.class) return -1;
-						if(a.getSecond()[i] == Integer.class && b.getSecond()[i] == Double.class) return 1;
-						if(b.getSecond()[i] == Integer.class && a.getSecond()[i] == Double.class) return -1;
-						if(a.getSecond()[i] == LocalDateTime.class && b.getSecond()[i] != LocalDateTime.class) return 1;
-						if(b.getSecond()[i] == LocalDateTime.class && a.getSecond()[i] != LocalDateTime.class) return -1;
+				if(b.getSecond().getArgsType().length == a.getSecond().getArgsType().length) {
+					for(int i = 0; i < a.getSecond().getArgsType().length; i++) {
+						if(a.getSecond().getArgsType()[i] == String.class && b.getSecond().getArgsType()[i] != String.class) return 1;
+						if(b.getSecond().getArgsType()[i] == String.class && a.getSecond().getArgsType()[i] != String.class) return -1;
+						if(a.getSecond().getArgsType()[i] == Long.class && b.getSecond().getArgsType()[i] == Integer.class) return 1;
+						if(b.getSecond().getArgsType()[i] == Long.class && a.getSecond().getArgsType()[i] == Integer.class) return -1;
+						if(a.getSecond().getArgsType()[i] == Integer.class && b.getSecond().getArgsType()[i] != Number.class) return 1;
+						if(b.getSecond().getArgsType()[i] == Integer.class && a.getSecond().getArgsType()[i] != Number.class) return -1;
+						if(a.getSecond().getArgsType()[i] == Integer.class && b.getSecond().getArgsType()[i] == Double.class) return 1;
+						if(b.getSecond().getArgsType()[i] == Integer.class && a.getSecond().getArgsType()[i] == Double.class) return -1;
+						if(a.getSecond().getArgsType()[i] == LocalDateTime.class && b.getSecond().getArgsType()[i] != LocalDateTime.class) return 1;
+						if(b.getSecond().getArgsType()[i] == LocalDateTime.class && a.getSecond().getArgsType()[i] != LocalDateTime.class) return -1;
 					}
 				}
-				return b.getSecond().length - a.getSecond().length;
+				return b.getSecond().getArgsType().length - a.getSecond().getArgsType().length;
 			});
 			
 			
-			for (Duo<Integer, Class<?>[]> pattern : sortedPatterns) {
+			for (Duo<Integer, CommandArgsTypePattern> pattern : sortedPatterns) {
 //				System.out.println("ptn : " + pattern.getFirst() + " | " + List.of(pattern.getSecond()).toString());
-				if(this.args.size() < pattern.getSecond().length) continue;
+				if(this.args.size() < pattern.getSecond().getArgsType().length) continue;
 				Object[] argsArr = this.args.toArray();
 				for(int i = 0; i < argsArr.length; i++) {
 					if(argsArr[i] instanceof String) {
@@ -374,7 +385,8 @@ public class CommandArgument {
 						if(a != null) argsArr[i] = a;
 					}
 				}
-				CommandArgsCastInfo elem = castByPattern(pattern.getSecond(), argsArr);
+				
+				CommandArgsCastInfo elem = castByPattern(pattern.getSecond().getArgsType(), argsArr);
 				if(!elem.isPatternMatch()) {
 					errorCastInfo.add(elem);
 					continue;
@@ -383,9 +395,11 @@ public class CommandArgument {
 					this.patternNumber = -1;
 					return this.args.toArray();
 				}
+				
 				for (int i = 0; i < this.args.size(); i++) {
 					this.args.set(i, elem.getResultObject()[i]);
 				}
+				
 				this.patternNumber = pattern.getFirst();
 				this.matchPattern = pattern.getSecond();
 				return this.args.toArray();
@@ -426,7 +440,7 @@ public class CommandArgument {
 				Object castResult = castAndCheck(nativeArgs[i], pattern[ptn++]);
 				if(castResult == null) {
 					patternMatch = false;
-					castSuccess[i] = true;
+					castSuccess[i] = false;
 				} else {
 					result[i] = castResult;
 					castSuccess[i] = true;

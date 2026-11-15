@@ -8,7 +8,7 @@ public class CommandArgsType {
 	public static final CommandArgsType NO_TYPE_CHECK = new CommandArgsType(false);
     public static final CommandArgsType STRING_ARGS = new CommandArgsType(true);
 	
-	private final List<Class<?>[]> argsType;
+	private final List<CommandArgsTypePattern> argsType;
 	
 	public CommandArgsType() {
 		this.argsType = new ArrayList<>();
@@ -23,11 +23,16 @@ public class CommandArgsType {
 	}
 	
 	public CommandArgsType addArgsTypePattern(Class<?>... argsType) {
+		this.argsType.add(new CommandArgsTypePattern(argsType));
+		return this;
+	}
+	
+	public CommandArgsType addArgsTypePattern(CommandArgsTypePattern argsType) {
 		this.argsType.add(argsType);
 		return this;
 	}
 	
-	List<Class<?>[]> getArgsType(){
+	List<CommandArgsTypePattern> getArgsType(){
 		return this.argsType;
 	}
 	
