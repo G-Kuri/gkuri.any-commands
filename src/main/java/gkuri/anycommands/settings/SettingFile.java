@@ -14,9 +14,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import gkuri.anycommands.settings.fileTypes.FileType;
-import gkuri.anycommands.settings.fileTypes.SettingJSON;
+//import gkuri.anycommands.settings.fileTypes.SettingJSON;
 import gkuri.anycommands.settings.fileTypes.SettingProperties;
-import gkuri.anycommands.settings.fileTypes.SettingXML;
+//import gkuri.anycommands.settings.fileTypes.SettingXML;
 import gkuri.anycommands.utils.ClassCastUtil;
 import gkuri.anycommands.utils.multiValue.Duo;
 /**
@@ -126,8 +126,8 @@ public abstract class SettingFile {
 		SettingFile sf = null;
 		switch (fileType) {
 			case TYPE_PROPERTIES -> sf = new SettingProperties(tfo);
-			case TYPE_JSON -> sf = new SettingJSON(tfo);
-			case TYPE_XML -> sf = new SettingXML(tfo);
+//			case TYPE_JSON -> sf = new SettingJSON(tfo);
+//			case TYPE_XML -> sf = new SettingXML(tfo);
 //			case TYPE_YAML -> sf = null;//暫定
 //			case TYPE_TOML -> sf = null;//暫定
 			default -> throw new IllegalArgumentException(fileType.getName() + " is not supported");
@@ -434,8 +434,8 @@ public abstract class SettingFile {
 		TextFileOperator dummyTfo = new TextFileOperator(filePath);
 		switch (fileType) {
 			case TYPE_PROPERTIES -> result = new SettingProperties(dummyTfo);
-			case TYPE_JSON -> result = new SettingJSON(dummyTfo);
-			case TYPE_XML -> result = new SettingXML(dummyTfo);
+//			case TYPE_JSON -> result = new SettingJSON(dummyTfo);
+//			case TYPE_XML -> result = new SettingXML(dummyTfo);
 			default -> throw new IllegalArgumentException(fileType.getName() + " is not supported type.");
 		}
 		
