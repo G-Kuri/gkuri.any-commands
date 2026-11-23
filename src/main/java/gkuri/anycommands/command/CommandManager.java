@@ -657,7 +657,7 @@ public class CommandManager {
 	protected CommandResult executeCommandFromOtherThanSudo(Command c, CommandArgument args, List<CommandEventListener> sudoEventListener) {
 		int subcommands = 0;
 		while (args.getArgs().size() != 0) {
-			if(subcommands++ <= policy.getExecutePolicy().getAllowSubCommandsCount()) {
+			if(policy.getExecutePolicy().getAllowSubCommandsCount() <= subcommands++) {
 				return new CommandResult(langSettingFile.getNonNull("tooDeepSubcommands"));
 			}
 			Map<String, Command> subs = c.getSubCommands().getSubCommandsMap();
