@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import gkuri.anycommands.command.annotation.ExecuteArgsTypeNumber;
 import gkuri.anycommands.command.annotation.ExperimentalCommand;
 import gkuri.anycommands.command.events.CommandEventListener;
+import gkuri.anycommands.command.policy.CommandManagerPolicy;
 import gkuri.anycommands.exception.command.CommandException;
 import gkuri.anycommands.settings.SettingFile;
 import gkuri.anycommands.utils.CorrectKeyword;
@@ -61,6 +62,7 @@ public class CommandManager {
 	protected final boolean showTypoSuggest;
 	protected SettingFile langSettingFile;
 	protected final Executor executor;
+	protected CommandManagerPolicy policy;
 
 	private HistoryCommand historyCommand;
 
@@ -91,7 +93,8 @@ public class CommandManager {
 			int holedHistoriesCount,
 			List<CommandEventListener> comEventListeners,
 			List<Duo<Class<? extends Command>, CommandEventListener>> comEventListenerReg,
-			boolean addExperimentalCommand) {
+			boolean addExperimentalCommand,
+			CommandManagerPolicy policy) {
 		
 		try {
 			this.langSettingFile = SettingFile.loadResourcesSetting("lang/" + lang.replace("-", "_") + "/command/CommandManager.properties");
@@ -143,6 +146,7 @@ public class CommandManager {
 		
 		for (CommandEventListener cel : comEventListeners) addCommandEventListener(cel);
 		for (Duo<Class<? extends Command>, CommandEventListener> cel : comEventListenerReg) addCommandEventListener(cel.getFirst(), cel.getSecond());
+		this.policy = policy;
 	}
 
 	protected CommandManager(CommandManager commandManager) {

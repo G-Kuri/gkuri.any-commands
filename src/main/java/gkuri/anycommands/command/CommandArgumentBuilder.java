@@ -37,7 +37,9 @@ public class CommandArgumentBuilder {
 
     /**
      * 実行するコマンドを設定します。
-     * ここではルートコマンド・親コマンドのみを設定してください。
+     * addArgやsetArgsを併用しない場合のみ文字列の引数解析が実行されます。
+     * 併用する場合、ここではルートコマンド・親コマンドのみを設定し
+     * サブコマンドは引数として登録してください。
      * @param command
      * @return
      */
@@ -61,10 +63,12 @@ public class CommandArgumentBuilder {
 
     /**
      * addArgで設定する引数をまとめて設定できます。
+     * List型を渡した場合のみ、自動的にListの内容が展開されます。
      * @param args
      * @return
      */
     public CommandArgumentBuilder setArgs(Object... args){
+    	if(args == null) return this;
     	this.args.clear();
     	for(Object a : args){
             if(a instanceof List<?> list){

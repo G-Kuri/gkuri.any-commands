@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 
 import gkuri.anycommands.command.events.CommandEventListener;
+import gkuri.anycommands.command.policy.CommandManagerPolicy;
 import gkuri.anycommands.exception.command.CommandException;
 import gkuri.anycommands.utils.multiValue.Duo;
 
@@ -24,6 +25,7 @@ public class CommandManagerBuilder{
     private final List<CommandEventListener> comEventListeners = new LinkedList<>();
     private final List<Duo<Class<? extends Command>, CommandEventListener>> comEventListenerReg = new LinkedList<>();
     private boolean addExperimentalCommand = false;
+    private CommandManagerPolicy policy = new CommandManagerPolicy();
     
     private boolean isUsed = false;
 
@@ -42,7 +44,8 @@ public class CommandManagerBuilder{
                                     holdHistoriesCount, 
                                     comEventListeners, 
                                     comEventListenerReg,
-                                    addExperimentalCommand);
+                                    addExperimentalCommand,
+                                    policy);
     }
 
     /**
@@ -186,6 +189,12 @@ public class CommandManagerBuilder{
      */
     public CommandManagerBuilder setHoldHistoriesCount(int holdHistoriesCount){
         this.holdHistoriesCount = 0 <= holdHistoriesCount ? holdHistoriesCount : 0;
+        return this;
+    }
+    
+    public CommandManagerBuilder setCommandManagerPolicy(CommandManagerPolicy policy){
+    	if(policy == null) return this;
+        this.policy = policy;
         return this;
     }
     
