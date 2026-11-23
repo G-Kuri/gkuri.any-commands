@@ -56,7 +56,7 @@ public class CommandManager {
 	protected final List<CommandEventListener> comEventListeners = new CopyOnWriteArrayList<>();
 	protected final Map<String, Command> comList = new HashMap<>();
 	protected final Map<Class<? extends Command>, List<CommandEventListener>> comEventListenerReg = new HashMap<>();
-	protected final Map<Long, Command> interactiveCommands = new ConcurrentHashMap<>();
+	protected final Map<Long, Duo<Command, Object>> interactiveCommands = new ConcurrentHashMap<>();
 	private final AtomicInteger runningAsyncCommandsCount = new AtomicInteger(0);
 	private final AtomicInteger maxRunningAsyncCommandsCount = new AtomicInteger(10);
 	protected final boolean showTypoSuggest;
@@ -472,15 +472,25 @@ public class CommandManager {
 	}
 
 	private CommandResult doInteractiveCommand(CommandArgument args) {
-		Command interactiveCommand;
+		Duo<Command, Object> interactiveCommand;
+		
 		if ((interactiveCommand = interactiveCommands.get(args.getInteractiveThreadId())) != null) {
+			
+			if(policy.getInteractivePolicy().checkUser() && !interactiveCommand.getSecond().equals(args.getExecuteUser())) {
+				return new CommandResult(langSettingFile.getNonNull("interactiveOtherUser"));
+			}
+			
+			if(policy.getInteractivePolicy().checkAuth() && !interactiveCommand.getFirst().canExecuteCommand(args.getExecuteUser())) {
+				return new CommandResult(langSettingFile.getNonNull("insufficiencyPermission"));
+			}
+			
 			CommandResult result = null;
 			try {
-				result = interactiveCommand.execute(args);
+				result = interactiveCommand.getFirst().execute(args);
 			} catch (Exception e) {
 				removeCommandThread(args.getInteractiveThreadId());
 				try {
-					result = interactiveCommand.catchException(e, args);
+					result = interactiveCommand.getFirst().catchException(e, args);
 				} catch (Exception ec) {
 					ec.printStackTrace();
 				}
@@ -523,7 +533,7 @@ public class CommandManager {
 	}
 	
 	protected List<CommandEventListener> addComEventListenerReg(List<CommandEventListener> baseList, Command c) {
-		if(!c.getSubCommands().canListenSubCommandsEvent() || this.comEventListenerReg.get(c.getClass()) == null) {
+		if(!c.getSubCommands().canListenSubCommandsEvent() || !policy.getEventPolicy().allowListenSubcommandsEvent() || this.comEventListenerReg.get(c.getClass()) == null) {
 			baseList.clear();
 		}
 		
@@ -535,7 +545,11 @@ public class CommandManager {
 		List<CommandArgumentBuilder> downStreams = args.getDownStreams();
 		CommandResult commandResult = doCommand(args);
 
+		int executePipes = 0;
 		for (CommandArgumentBuilder ds : downStreams) {
+			
+			if(this.policy.getExecutePolicy().getAllowPipeCount() <= executePipes++) return commandResult;
+			
 			ds.setBeforeCommandResult(commandResult);
 			CommandArgument dsArgs = ds.build();
 			dsArgs.setSudo(args.isSudo());
@@ -590,7 +604,7 @@ public class CommandManager {
 		if (result.isInteractiveMode()) {
 			if (result.getInteractiveThreadId() == null)
 				result.setInteractiveThreadId();
-			interactiveCommands.put(result.getInteractiveThreadId(), c.getNewInteractiveInstance(result.getInteractiveData()));
+			interactiveCommands.put(result.getInteractiveThreadId(), new Duo<>(c.getNewInteractiveInstance(result.getInteractiveData()), args.getExecuteUser()));
 		}
 
 		doListenersAfterEvent(listener, args, result);
@@ -641,7 +655,11 @@ public class CommandManager {
 	}
 	
 	protected CommandResult executeCommandFromOtherThanSudo(Command c, CommandArgument args, List<CommandEventListener> sudoEventListener) {
+		int subcommands = 0;
 		while (args.getArgs().size() != 0) {
+			if(subcommands++ <= policy.getExecutePolicy().getAllowSubCommandsCount()) {
+				return new CommandResult(langSettingFile.getNonNull("tooDeepSubcommands"));
+			}
 			Map<String, Command> subs = c.getSubCommands().getSubCommandsMap();
 			if (subs == null)
 				break;
@@ -708,6 +726,7 @@ public class CommandManager {
 	}
 
 	protected void doListenersBeforeEvent(List<CommandEventListener> comListeners, CommandArgument args) {
+		if(!policy.getEventPolicy().allowBeforeEvent()) return;
 		for (CommandEventListener l : this.comEventListeners) {
 			try {
 				l.doBeforeExecution(args);
@@ -733,76 +752,86 @@ public class CommandManager {
 	}
 	
 	protected void doListenersAfterEvent(List<CommandEventListener> comListeners, CommandArgument args, CommandResult result) {
+
 		for (CommandEventListener l : comListeners) {
-			try {
-				l.doAfterExecution(args, result);
-			} catch (Exception e) {
+			if(policy.getEventPolicy().allowAfterEvent()) {
 				try {
-					l.catchExceptionByListener(e, args, result);
-				} catch (Exception ec) {
-					ec.printStackTrace();
+					l.doAfterExecution(args, result);
+				} catch (Exception e) {
+					try {
+						l.catchExceptionByListener(e, args, result);
+					} catch (Exception ec) {
+						ec.printStackTrace();
+					}
 				}
 			}
 
-			try {
-				switch (result.getStatus()) {
-					case ERROR:
-						l.doResultIsError(args, result);
-						break;
-					case WARNING:
-						l.doResultIsWARN(args, result);
-						break;
-					case RUNNING:
-						l.doResultIsRunning(args, result);
-						break;
-					case SUCCESS:
-						l.doResultIsSuccess(args, result);
-						break;
-					case UNEXECUTED:
-						l.doResultIsUnexecuted(args, result);
-				}
-			} catch (Exception e) {
+			if(policy.getEventPolicy().allowStatusEvent()) {
 				try {
-					l.catchExceptionByListener(e, args, result);
-				} catch (Exception ec) {
-					ec.printStackTrace();
+					switch (result.getStatus()) {
+						case ERROR:
+							l.doResultIsError(args, result);
+							break;
+						case WARNING:
+							l.doResultIsWARN(args, result);
+							break;
+						case RUNNING:
+							l.doResultIsRunning(args, result);
+							break;
+						case SUCCESS:
+							l.doResultIsSuccess(args, result);
+							break;
+						case UNEXECUTED:
+							l.doResultIsUnexecuted(args, result);
+					}
+				} catch (Exception e) {
+					try {
+						l.catchExceptionByListener(e, args, result);
+					} catch (Exception ec) {
+						ec.printStackTrace();
+					}
 				}
 			}
+			
 		}
 
 		for (CommandEventListener l : this.comEventListeners) {
-			try {
-				l.doAfterExecution(args, result);
-			} catch (Exception e) {
+			if(policy.getEventPolicy().allowAfterEvent()) {
 				try {
-					l.catchExceptionByListener(e, args, result);
-				} catch (Exception ec) {
-					ec.printStackTrace();
+					l.doAfterExecution(args, result);
+				} catch (Exception e) {
+					try {
+						l.catchExceptionByListener(e, args, result);
+					} catch (Exception ec) {
+						ec.printStackTrace();
+					}
 				}
 			}
 
-			try {
-				switch (result.getStatus()) {
-					case ERROR:
-						l.doResultIsError(args, result);
-						break;
-					case WARNING:
-						l.doResultIsWARN(args, result);
-						break;
-					case RUNNING:
-						l.doResultIsRunning(args, result);
-						break;
-					case SUCCESS:
-						l.doResultIsSuccess(args, result);
-						break;
-					case UNEXECUTED:
-						l.doResultIsUnexecuted(args, result);
-				}
-			} catch (Exception e) {
+			if(policy.getEventPolicy().allowStatusEvent()) {
 				try {
-					l.catchExceptionByListener(e, args, result);
-				} catch (Exception ec) {
-					ec.printStackTrace();
+					switch (result.getStatus()) {
+						case ERROR:
+							l.doResultIsError(args, result);
+							break;
+						case WARNING:
+							l.doResultIsWARN(args, result);
+							break;
+						case RUNNING:
+							l.doResultIsRunning(args, result);
+							break;
+						case SUCCESS:
+							l.doResultIsSuccess(args, result);
+							break;
+						case UNEXECUTED:
+							l.doResultIsUnexecuted(args, result);
+					}
+				} catch (Exception e) {
+					try {
+						l.catchExceptionByListener(e, args, result);
+					} catch (Exception ec) {
+						ec.printStackTrace();
+					}
 				}
 			}
 		}
