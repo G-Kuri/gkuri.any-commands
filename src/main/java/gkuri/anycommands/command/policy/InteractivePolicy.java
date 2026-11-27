@@ -4,6 +4,7 @@ public class InteractivePolicy extends CommandPolicy {
 
 	protected boolean checkAuth = false;
 	protected boolean checkUser = true;
+	protected boolean castArgs = false;
 	
 	public boolean checkAuth() {
 		return this.checkAuth;
@@ -11,6 +12,10 @@ public class InteractivePolicy extends CommandPolicy {
 	
 	public boolean checkUser() {
 		return this.checkUser;
+	}
+	
+	public boolean castArgs() {
+		return this.castArgs;
 	}
 	
 	public void checkAuth(boolean checkAuth) {
@@ -21,5 +26,10 @@ public class InteractivePolicy extends CommandPolicy {
 	public void checkUser(boolean checkUser) {
 		checkLocked();
 		this.checkUser = checkUser;
+	}
+	
+	public void castArgs(boolean castArgs) {
+		checkLocked();
+		this.castArgs = castArgs;
 	}
 }

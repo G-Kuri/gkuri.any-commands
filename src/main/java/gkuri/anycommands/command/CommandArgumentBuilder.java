@@ -24,6 +24,8 @@ public class CommandArgumentBuilder {
         if(this.args.isEmpty()){
             if(this.interactiveThreadId != null){
                 ca.splitAndParseStringArgs();
+                this.args.addFirst(this.command);
+                this.command = "";
             } else {
                 ca.splitCommandAndArgs();
             }

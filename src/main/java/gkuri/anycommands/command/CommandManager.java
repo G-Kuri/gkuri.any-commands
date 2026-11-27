@@ -484,6 +484,10 @@ public class CommandManager {
 				return new CommandResult(langSettingFile.getNonNull("insufficiencyPermission"));
 			}
 			
+			if(policy.getInteractivePolicy().castArgs() && (interactiveCommand.getFirst() instanceof InteractiveCommand)) {
+				args.classCastArgs(interactiveCommand.getFirst());
+			}
+			
 			CommandResult result = null;
 			try {
 				result = interactiveCommand.getFirst().execute(args);

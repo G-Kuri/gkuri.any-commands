@@ -556,44 +556,7 @@ public class CommandArgument {
 			if(!(o instanceof String)) return;
 		}
 
-		List<String> argsList = new ArrayList<>();
-		boolean inQuotes = false;
-		StringBuilder sb = new StringBuilder();
-
-		for (int i = 0; i < nativeCommand.length(); i++) {
-			char c = nativeCommand.charAt(i);
-
-			if (c == '"') {
-				int count = 0;
-				for(int j = i-1; 0 <= j; j--) {
-					if(nativeCommand.charAt(j) != '\\') {
-						break;
-					}
-					count++;
-				}
-				if(0 == count || count % 2 == 0) {
-					inQuotes = !inQuotes;
-					continue;
-				} else if(0 < count) {
-					if(0 < sb.length()) {
-						sb = new StringBuilder(sb.substring(0, sb.length()-1));
-					}
-				}
-			}
-			
-			if (Character.isWhitespace(c) && !inQuotes) {
-				if (sb.length() > 0) {
-					argsList.add(sb.toString());
-					sb.setLength(0);
-				}
-			} else {
-				sb.append(c);
-			}
-		}
-
-		if (sb.length() > 0) {
-			argsList.add(sb.toString());
-		}
+		List<String> argsList = parseString(this.nativeCommand);
 
 		this.args.clear();
 		List<List<String>> downStreams = new ArrayList<>();
@@ -627,6 +590,70 @@ public class CommandArgument {
 		this.splitAndParseStringArgsCompleated = true;
 		parseOptionsByArgs();
 	}
+	
+	/**
+	   * <h3>文字列をスペース区切りでトークン化する。</h3>
+	   * トークン化の仕様は以下の通り
+	   * <li>空白文字区切りで分割される</li>
+	   * <li>'又は"で囲んだブロックは分割されない</li>
+	   * <li>'で開始したブロックは"で終了せず'でのみ終了する(”で開始した場合も同様に"でのみ終了する)</li>
+	   * <li>閉じられていないブロックは末端で自動終了する</li>
+	   * <li>エスケープ文字は\</li>
+	   * <li>エスケープされた文字は必ず通常文字として処理される</li>
+	   * <li>ブロック外の連続スペースは無視する</li>
+	   * @param text
+	   * @return
+	   */
+	  protected List<String> parseString(String text) {
+	    List<String> result = new ArrayList<>();
+	 
+	    Character q = null;
+	    boolean inQ = false;
+	    boolean escaped = false;
+	    StringBuilder sb = new StringBuilder();
+	 
+	    for(int i = 0; i < text.length(); i++){
+	      char c = text.charAt(i);
+	 
+	      if(escaped){
+	        sb.append(c);
+	        escaped = false;
+	        continue;
+	      }
+	 
+	      if(c == '\\'){
+	        escaped = true;
+	        continue;
+	      }
+	 
+	      if(c == '"' || c == '\''){
+	        if(q != null && q == c){
+	          q = null;
+	          inQ = false;
+	          continue;
+	        } else if(!inQ) {
+	          q = c;
+	          inQ = true;
+	          continue;
+	        }
+	      }
+	     
+	      if(Character.isWhitespace(c) && !inQ){
+	        if(0 < i && !Character.isWhitespace(text.charAt(i - 1))){
+	          result.add(sb.toString());
+	          sb = new StringBuilder();
+	        }
+	        continue;
+	      }
+	 
+	      sb.append(c);
+	    }
+	 
+	    if(sb.length() != 0) {
+	      result.add(sb.toString());
+	    }
+	    return result;
+	  }
 
 	
 	protected void splitCommandAndArgs() {
